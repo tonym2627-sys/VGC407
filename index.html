@@ -1,0 +1,1098 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VGC407 2.0</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #080b12;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+header {
+  text-align: center;
+  padding: 18px;
+  background: #10151e;
+  border-bottom: 1px solid #32caff;
+}
+
+h1 {
+  margin: 0;
+  color: #8deaff;
+  letter-spacing: 6px;
+  text-shadow: 0 0 18px #009dff;
+}
+
+.subtitle {
+  color: #aab5c5;
+  font-size: 11px;
+  letter-spacing: 3px;
+  margin-top: 8px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+}
+
+button, input, select {
+  background: #192332;
+  color: white;
+  border: 1px solid #36516a;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 16px;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover {
+  background: #254c68;
+}
+
+#stats {
+  text-align: center;
+  padding: 10px;
+  color: #8deaff;
+}
+
+#room {
+  width: 100%;
+  height: 65vh;
+  min-height: 350px;
+  position: relative;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  touch-action: none;
+}
+
+#viewer {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: #080b12;
+  z-index: 20;
+  overflow: auto;
+  text-align: center;
+  padding: 15px;
+}
+
+#caseView {
+  width: 100%;
+  height: 48vh;
+}
+
+#details {
+  line-height: 1.8;
+  color: #ccd7e5;
+}
+
+#gameName {
+  color: #8deaff;
+}
+
+#instructions {
+  text-align: center;
+  color: #9baaba;
+  font-size: 13px;
+  padding: 15px;
+}
+
+#empty {
+  text-align: center;
+  padding: 10px;
+  color: #8deaff;
+}
+
+a {
+  color: #8deaff;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>VGC407</h1>
+  <div class="subtitle">
+    THE VIDEO GAME COLLECTION ROOM
+  </div>
+</header>
+
+<div class="toolbar">
+
+  <button onclick="location.href='VGC407-scanner.html'">
+    + Add / Scan Game
+  </button>
+
+  <input id="search"
+    placeholder="Search collection">
+
+  <select id="platform">
+    <option value="">All consoles</option>
+  </select>
+
+  <button id="reset">Reset View</button>
+
+</div>
+
+<div id="stats"></div>
+
+<div id="empty"></div>
+
+<div id="room"></div>
+
+<div id="instructions">
+  Drag to explore • Pinch to zoom • Tap a game to inspect
+</div>
+
+<div id="viewer">
+
+  <button id="closeViewer">
+    Return to Collection
+  </button>
+
+  <h2 id="gameName"></h2>
+
+  <div id="caseView"></div>
+
+  <div class="toolbar">
+    <button id="showFront">Front</button>
+    <button id="showSpine">Spine</button>
+    <button id="showBack">Back</button>
+  </div>
+
+  <div id="details"></div>
+
+  <div class="toolbar">
+    <button id="editGame">
+      Manage Artwork
+    </button>
+    <button id="priceSearch">
+      Check Market Value
+    </button>
+  </div>
+
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+
+import * as THREE from "three";
+
+import { OrbitControls } from
+  "three/addons/controls/OrbitControls.js";
+
+const el = id => document.getElementById(id);
+
+let games = [];
+
+try {
+  const saved = JSON.parse(
+    localStorage.getItem("games") || "[]"
+  );
+
+  if (Array.isArray(saved)) {
+    games = saved;
+  }
+} catch (error) {
+  console.error(error);
+}
+
+const demoMode = games.length === 0;
+
+if (demoMode) {
+
+  games = [
+    {
+      title: "Marvel Cosmic Invasion",
+      platform: "Nintendo Switch 2"
+    },
+    {
+      title: "Super Mario Odyssey",
+      platform: "Nintendo Switch"
+    },
+    {
+      title: "Mario Kart 8 Deluxe",
+      platform: "Nintendo Switch"
+    },
+    {
+      title: "Metroid Prime Remastered",
+      platform: "Nintendo Switch"
+    },
+    {
+      title: "Resident Evil 4",
+      platform: "PS5"
+    },
+    {
+      title: "Spider-Man 2",
+      platform: "PS5"
+    },
+    {
+      title: "Final Fantasy XVI",
+      platform: "PS5"
+    },
+    {
+      title: "Tekken 8",
+      platform: "PS5"
+    },
+    {
+      title: "God of War",
+      platform: "PS4"
+    },
+    {
+      title: "Bloodborne",
+      platform: "PS4"
+    },
+    {
+      title: "Halo Infinite",
+      platform: "Xbox Series X"
+    },
+    {
+      title: "Forza Horizon 5",
+      platform: "Xbox Series X"
+    }
+  ];
+
+  el("empty").textContent =
+    "Demo collection — scan games to build your own shelf.";
+}
+
+const scene = new THREE.Scene();
+
+scene.background = new THREE.Color(0x080b12);
+
+const camera = new THREE.PerspectiveCamera(
+  42, 1, 0.1, 100
+);
+
+camera.position.set(5, 4, 12);
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: true
+});
+
+renderer.setPixelRatio(
+  Math.min(window.devicePixelRatio, 2)
+);
+
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+el("room").appendChild(renderer.domElement);
+
+const controls = new OrbitControls(
+  camera,
+  renderer.domElement
+);
+
+controls.enableDamping = true;
+controls.enablePan = true;
+controls.minDistance = 2;
+controls.maxDistance = 35;
+controls.maxPolarAngle = Math.PI / 2;
+
+scene.add(
+  new THREE.AmbientLight(0xffffff, 1.8)
+);
+
+const light = new THREE.DirectionalLight(
+  0xffffff, 2
+);
+
+light.position.set(5, 8, 10);
+
+scene.add(light);
+
+const cabinet = new THREE.Group();
+
+scene.add(cabinet);
+
+const wood = new THREE.MeshStandardMaterial({
+  color: 0x17191e,
+  roughness: 0.65
+});
+
+const led = new THREE.MeshStandardMaterial({
+  color: 0x39caff,
+  emissive: 0x009dff,
+  emissiveIntensity: 4
+});
+
+const loader = new THREE.TextureLoader();
+
+let selectable = [];
+
+let selectedGame = null;
+
+let cabinetHeight = 5;
+
+function box(w, h, d, material, x, y, z) {
+
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d),
+    material
+  );
+
+  mesh.position.set(x, y, z);
+
+  return mesh;
+}
+
+function consoleColor(platform) {
+
+  const p = String(platform).toLowerCase();
+
+  if (p.includes("switch")) return "#cf172d";
+  if (p.includes("ps5")) return "#e8edf3";
+  if (p.includes("ps4")) return "#124ab5";
+  if (p.includes("ps3")) return "#303030";
+  if (p.includes("xbox")) return "#238b35";
+
+  return "#343d50";
+}
+
+function caseDimensions(platform) {
+
+  const p = String(platform).toLowerCase();
+
+  if (p.includes("switch")) {
+    return { w: 0.66, h: 1.02, d: 0.11 };
+  }
+
+  if (p.includes("game boy")) {
+    return { w: 0.72, h: 0.78, d: 0.19 };
+  }
+
+  return { w: 0.77, h: 1.08, d: 0.14 };
+}
+
+function textTexture(
+  text,
+  background,
+  spine = false
+) {
+
+  const canvas = document.createElement("canvas");
+
+  canvas.width = spine ? 128 : 512;
+  canvas.height = 768;
+
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = background;
+
+  ctx.fillRect(
+    0, 0, canvas.width, canvas.height
+  );
+
+  ctx.fillStyle = "#10151e";
+
+  ctx.fillRect(
+    0, 90, canvas.width, 678
+  );
+
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+
+  if (spine) {
+
+    ctx.translate(64, 420);
+    ctx.rotate(Math.PI / 2);
+    ctx.font = "bold 30px Arial";
+    ctx.fillText(text, 0, 10, 600);
+
+  } else {
+
+    ctx.font = "bold 36px Arial";
+
+    const words = String(text).split(" ");
+
+    let line = "";
+    let y = 260;
+
+    for (const word of words) {
+
+      const next = line + word + " ";
+
+      if (ctx.measureText(next).width > 450 && line) {
+
+        ctx.fillText(line.trim(), 256, y);
+        line = word + " ";
+        y += 48;
+
+      } else {
+        line = next;
+      }
+    }
+
+    ctx.fillText(line.trim(), 256, y);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  return texture;
+}
+
+function artworkMaterial(url, fallback) {
+
+  const material = new THREE.MeshStandardMaterial({
+    map: fallback,
+    roughness: 0.7
+  });
+
+  if (
+    typeof url === "string" &&
+    /^(https?:|data:image\/|blob:)/i.test(url)
+  ) {
+
+    loader.load(
+      url,
+      texture => {
+
+        texture.colorSpace = THREE.SRGBColorSpace;
+
+        material.map = texture;
+        material.needsUpdate = true;
+
+      },
+      undefined,
+      () => {
+        console.log("Using fallback artwork");
+      }
+    );
+  }
+
+  return material;
+}
+
+function createCase(game) {
+
+  const platform = game.platform || "Other";
+
+  const color = consoleColor(platform);
+
+  const size = caseDimensions(platform);
+
+  const title = game.title || "Unknown Game";
+
+  const spine = artworkMaterial(
+    game.spine,
+    textTexture(title, color, true)
+  );
+
+  const front = artworkMaterial(
+    game.cover || game.front,
+    textTexture(title, color)
+  );
+
+  const back = artworkMaterial(
+    game.back,
+    textTexture("Back artwork unavailable", color)
+  );
+
+  const plastic = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(color)
+  });
+
+  const mesh = new THREE.Mesh(
+
+    new THREE.BoxGeometry(
+      size.w,
+      size.h,
+      size.d
+    ),
+
+    [
+      plastic,
+      spine,
+      plastic,
+      plastic,
+      front,
+      back
+    ]
+  );
+
+  mesh.userData.game = game;
+
+  return mesh;
+}
+
+function clearGroup(group) {
+
+  while (group.children.length) {
+
+    const object = group.children[0];
+
+    group.remove(object);
+
+    object.traverse(child => {
+
+      if (child.geometry) {
+        child.geometry.dispose();
+      }
+
+      if (child.material) {
+
+        const materials = Array.isArray(child.material)
+          ? child.material
+          : [child.material];
+
+        for (const material of materials) {
+
+          if (material !== wood && material !== led) {
+
+            if (material.map) material.map.dispose();
+
+            material.dispose();
+          }
+        }
+      }
+    });
+  }
+}
+
+function label(text) {
+
+  const canvas = document.createElement("canvas");
+
+  canvas.width = 1024;
+  canvas.height = 128;
+
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = "#101820";
+  ctx.fillRect(0, 0, 1024, 128);
+
+  ctx.font = "bold 65px Arial";
+  ctx.fillStyle = "#9eeaff";
+  ctx.textAlign = "center";
+
+  ctx.fillText(text.toUpperCase(), 512, 88, 980);
+
+  const texture = new THREE.CanvasTexture(canvas);
+
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(2.8, 0.3),
+    new THREE.MeshBasicMaterial({
+      map: texture
+    })
+  );
+}
+
+function buildCabinet() {
+
+  clearGroup(cabinet);
+
+  selectable = [];
+
+  const query = el("search").value.toLowerCase();
+
+  const platform = el("platform").value;
+
+  const filtered = games.filter(game => {
+
+    return String(game.title)
+      .toLowerCase()
+      .includes(query) &&
+
+      (!platform || game.platform === platform);
+  });
+
+  const groups = {};
+
+  filtered.forEach(game => {
+
+    const p = game.platform || "Other";
+
+    if (!groups[p]) groups[p] = [];
+
+    groups[p].push(game);
+  });
+
+  const rows = [];
+
+  Object.keys(groups).sort().forEach(p => {
+
+    const list = groups[p].sort((a, b) =>
+      String(a.title).localeCompare(String(b.title))
+    );
+
+    for (let i = 0; i < list.length; i += 36) {
+
+      rows.push({
+        platform: p,
+        games: list.slice(i, i + 36)
+      });
+    }
+  });
+
+  const width = 7.2;
+  const rowHeight = 1.65;
+
+  cabinetHeight =
+    Math.max(rows.length, 1) * rowHeight + 0.4;
+
+  cabinet.add(
+    box(
+      width + 0.3,
+      cabinetHeight,
+      0.12,
+      wood,
+      0,
+      cabinetHeight / 2,
+      -0.55
+    )
+  );
+
+  cabinet.add(
+    box(
+      0.2,
+      cabinetHeight,
+      1.2,
+      wood,
+      -width / 2,
+      cabinetHeight / 2,
+      0
+    )
+  );
+
+  cabinet.add(
+    box(
+      0.2,
+      cabinetHeight,
+      1.2,
+      wood,
+      width / 2,
+      cabinetHeight / 2,
+      0
+    )
+  );
+
+  for (
+    let i = 0;
+    i <= Math.max(rows.length, 1);
+    i++
+  ) {
+
+    cabinet.add(
+      box(
+        width,
+        0.15,
+        1.2,
+        wood,
+        0,
+        0.15 + i * rowHeight,
+        0
+      )
+    );
+  }
+
+  rows.forEach((row, index) => {
+
+    const y =
+      (rows.length - 1 - index) * rowHeight + 0.23;
+
+    cabinet.add(
+      box(
+        width - 0.25,
+        0.045,
+        0.06,
+        led,
+        0,
+        y + 1.45,
+        0.5
+      )
+    );
+
+    const sign = label(row.platform);
+
+    sign.position.set(
+      0, y + 1.28, 0.61
+    );
+
+    cabinet.add(sign);
+
+    let x = -width / 2 + 0.25;
+
+    row.games.forEach(game => {
+
+      const mesh = createCase(game);
+
+      const size = caseDimensions(game.platform);
+
+      mesh.rotation.y = Math.PI / 2;
+
+      x += size.d / 2;
+
+      mesh.position.set(
+        x,
+        y + size.h / 2,
+        0.03
+      );
+
+      cabinet.add(mesh);
+
+      selectable.push(mesh);
+
+      x += size.d / 2 + 0.025;
+    });
+  });
+
+  const totalValue = filtered.reduce(
+    (sum, game) => {
+
+      const value = Number(
+        game.currentValue ?? game.value ?? 0
+      );
+
+      return sum + (
+        Number.isFinite(value) ? value : 0
+      );
+
+    }, 0
+  );
+
+  el("stats").textContent =
+    filtered.length +
+    (demoMode ? " demo games" : " games") +
+    " | Recorded value: $" +
+    totalValue.toFixed(2);
+
+  resetView();
+}
+
+function resetView() {
+
+  controls.target.set(
+    0, cabinetHeight / 2, 0
+  );
+
+  camera.position.set(
+    1.2,
+    cabinetHeight / 2 + 0.5,
+    Math.max(12, cabinetHeight * 1.55)
+  );
+
+  controls.maxDistance =
+    Math.max(35, cabinetHeight * 3);
+
+  controls.update();
+}
+
+const platforms = [
+  ...new Set(
+    games.map(g => g.platform || "Other")
+  )
+].sort();
+
+platforms.forEach(platform => {
+
+  const option = document.createElement("option");
+
+  option.value = platform;
+  option.textContent = platform;
+
+  el("platform").appendChild(option);
+});
+
+el("search").addEventListener(
+  "input", buildCabinet
+);
+
+el("platform").addEventListener(
+  "change", buildCabinet
+);
+
+el("reset").onclick = resetView;
+
+const raycaster = new THREE.Raycaster();
+
+const pointer = new THREE.Vector2();
+
+let downX = 0;
+let downY = 0;
+
+renderer.domElement.addEventListener(
+  "pointerdown",
+  event => {
+
+    downX = event.clientX;
+    downY = event.clientY;
+  }
+);
+
+renderer.domElement.addEventListener(
+  "pointerup",
+  event => {
+
+    if (
+      Math.hypot(
+        event.clientX - downX,
+        event.clientY - downY
+      ) > 8
+    ) return;
+
+    const rect =
+      renderer.domElement.getBoundingClientRect();
+
+    pointer.x =
+      ((event.clientX - rect.left) / rect.width)
+      * 2 - 1;
+
+    pointer.y =
+      -((event.clientY - rect.top) / rect.height)
+      * 2 + 1;
+
+    raycaster.setFromCamera(pointer, camera);
+
+    const hits =
+      raycaster.intersectObjects(selectable);
+
+    if (hits.length) {
+      openGame(hits[0].object.userData.game);
+    }
+  }
+);
+
+const caseScene = new THREE.Scene();
+
+caseScene.background =
+  new THREE.Color(0x080b12);
+
+caseScene.add(
+  new THREE.AmbientLight(0xffffff, 2)
+);
+
+const caseLight = new THREE.DirectionalLight(
+  0xffffff, 2
+);
+
+caseLight.position.set(3, 4, 5);
+
+caseScene.add(caseLight);
+
+const caseCamera = new THREE.PerspectiveCamera(
+  35, 1, 0.1, 100
+);
+
+caseCamera.position.set(0, 0, 2.8);
+
+const caseRenderer = new THREE.WebGLRenderer({
+  antialias: true
+});
+
+caseRenderer.setPixelRatio(
+  Math.min(window.devicePixelRatio, 2)
+);
+
+caseRenderer.outputColorSpace =
+  THREE.SRGBColorSpace;
+
+el("caseView").appendChild(
+  caseRenderer.domElement
+);
+
+const caseControls = new OrbitControls(
+  caseCamera,
+  caseRenderer.domElement
+);
+
+caseControls.enableDamping = true;
+caseControls.enablePan = false;
+caseControls.minDistance = 1.4;
+caseControls.maxDistance = 5;
+
+const caseGroup = new THREE.Group();
+
+caseScene.add(caseGroup);
+
+function openGame(game) {
+
+  selectedGame = game;
+
+  clearGroup(caseGroup);
+
+  caseGroup.add(createCase(game));
+
+  el("gameName").textContent = game.title;
+
+  el("details").replaceChildren();
+
+  const information = [
+    ["Console", game.platform || "Unknown"],
+    ["Region", game.region || "Not recorded"],
+    ["Condition", game.condition || "Not recorded"],
+    ["Barcode", game.barcode || "Not recorded"],
+    ["Purchase price", game.purchasePrice != null &&
+      game.purchasePrice !== ""
+      ? "$" + game.purchasePrice
+      : "Not recorded"],
+    ["Current value", (game.currentValue ?? game.value) != null &&
+      (game.currentValue ?? game.value) !== ""
+      ? "$" + (game.currentValue ?? game.value)
+      : "Not recorded"]
+  ];
+
+  information.forEach(([name, value]) => {
+
+    const row = document.createElement("div");
+
+    row.textContent = name + ": " + value;
+
+    el("details").appendChild(row);
+  });
+
+  el("viewer").style.display = "block";
+
+  caseCamera.position.set(0, 0, 2.8);
+
+  caseControls.target.set(0, 0, 0);
+
+  caseControls.update();
+
+  resize();
+}
+
+el("closeViewer").onclick = () => {
+
+  el("viewer").style.display = "none";
+
+  selectedGame = null;
+};
+
+el("showFront").onclick = () => {
+
+  caseCamera.position.set(0, 0, 2.8);
+
+  caseControls.update();
+};
+
+el("showSpine").onclick = () => {
+
+  caseCamera.position.set(-2.8, 0, 0);
+
+  caseControls.update();
+};
+
+el("showBack").onclick = () => {
+
+  caseCamera.position.set(0, 0, -2.8);
+
+  caseControls.update();
+};
+
+el("editGame").onclick = () => {
+
+  location.href = "VGC407-scanner.html";
+};
+
+el("priceSearch").onclick = () => {
+
+  if (!selectedGame) return;
+
+  const query = encodeURIComponent(
+    selectedGame.title + " " +
+    selectedGame.platform
+  );
+
+  window.open(
+    "https://www.pricecharting.com/search-products?q="
+      + query,
+    "_blank",
+    "noopener,noreferrer"
+  );
+};
+
+function resize() {
+
+  const room = el("room");
+
+  renderer.setSize(
+    room.clientWidth,
+    room.clientHeight
+  );
+
+  camera.aspect =
+    room.clientWidth / room.clientHeight;
+
+  camera.updateProjectionMatrix();
+
+  const view = el("caseView");
+
+  if (view.clientWidth && view.clientHeight) {
+
+    caseRenderer.setSize(
+      view.clientWidth,
+      view.clientHeight
+    );
+
+    caseCamera.aspect =
+      view.clientWidth / view.clientHeight;
+
+    caseCamera.updateProjectionMatrix();
+  }
+}
+
+window.addEventListener("resize", resize);
+
+window.addEventListener("pageshow", event => {
+
+  if (event.persisted) location.reload();
+});
+
+buildCabinet();
+
+resize();
+
+function animate() {
+
+  requestAnimationFrame(animate);
+
+  controls.update();
+
+  renderer.render(scene, camera);
+
+  if (el("viewer").style.display === "block") {
+
+    caseControls.update();
+
+    caseRenderer.render(caseScene, caseCamera);
+  }
+}
+
+animate();
+
+</script>
+
+</body>
+</html>
