@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>VGC407</title>
+<style>
+body{background:#101218;color:#eee;font:16px Arial;margin:18px;text-align:center} h1{letter-spacing:5px;color:#8deaff} input,select,button{padding:9px;margin:4px;border:1px solid #555;border-radius:5px} button{background:#25465b;color:white;cursor:pointer} .shelf{background:#08090c;border:8px solid #252830;border-top:3px solid #71dfff;box-shadow:0 -3px 15px #27b8ef,inset 0 8px 20px #174354;margin:25px auto;padding:20px 12px 0;text-align:left;max-width:950px} .spine{display:inline-block;vertical-align:bottom;width:32px;height:165px;margin:0 2px;background:#263848;border:1px solid #758392;position:relative;overflow:hidden;cursor:pointer;box-shadow:3px 0 5px #000} .spine span{position:absolute;top:12px;left:23px;width:145px;text-align:left;white-space:nowrap;overflow:hidden;transform:rotate(90deg);transform-origin:0 0;-webkit-transform:rotate(90deg);-webkit-transform-origin:0 0} .spine img{width:100%;height:100%} .ledge{height:12px;background:#30343c;box-shadow:0 5px 8px #000;margin:0 -12px 18px} #viewer{display:none;position:fixed;top:0;left:0;width:100%;height:100%;overflow:auto;background:rgba(0,0,0,.94);z-index:5} #stage{margin:25px auto;width:210px;height:290px;position:relative;perspective:800px;-webkit-perspective:800px} #case{width:210px;height:290px;position:relative;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;transition:transform .5s;-webkit-transition:-webkit-transform .5s} .face{position:absolute;background:#263848;border:1px solid #888;box-sizing:border-box;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden} .face img{width:100%;height:100%} .front,.back{width:210px;height:290px} .front{transform:translateZ(12px);-webkit-transform:translateZ(12px)} .back{transform:rotateY(180deg) translateZ(12px);-webkit-transform:rotateY(180deg) translateZ(12px)} .side{width:24px;height:290px;left:93px;transform:rotateY(-90deg) translateZ(105px);-webkit-transform:rotateY(-90deg) translateZ(105px)} .edge{width:24px;height:290px;left:93px;transform:rotateY(90deg) translateZ(105px);-webkit-transform:rotateY(90deg) translateZ(105px)} .top,.bottom{width:210px;height:24px;top:133px;transform:rotateX(90deg) translateZ(145px);-webkit-transform:rotateX(90deg) translateZ(145px)} .bottom{transform:rotateX(-90deg) translateZ(145px);-webkit-transform:rotateX(-90deg) translateZ(145px)} .side span{display:block;width:270px;transform:rotate(90deg);transform-origin:0 0;-webkit-transform:rotate(90deg);-webkit-transform-origin:0 0;margin-left:20px} #editor{display:none} .danger{background:#922d38}
+</style></head><body><h1>VGC407</h1><p>MY GAME COLLECTION</p><p id="count"></p>
+<div><input id="title" placeholder="Game title"><select id="console"></select><input id="cover" placeholder="Front cover URL"><button onclick="add()">Add Game</button></div>
+<div><button onclick="startScan()">Scan Game</button><input id="barcode" placeholder="Barcode (UPC/EAN)" inputmode="numeric"><button onclick="lookup()">Find Game</button><button onclick="stopScan()">Stop Camera</button><div id="reader" style="max-width:360px;margin:auto"></div><p id="scanStatus" role="status"></p><a id="manual" target="_blank" rel="noopener" style="color:#8deaff"></a></div>
+<input id="search" placeholder="Search collection" onkeyup="render()"><div id="shelves"></div>
+<div id="viewer"><button onclick="closeView()">Close</button><h2 id="name"></h2><div id="stage"><div id="case"><div class="face front" id="front"></div><div class="face back" id="back"></div><div class="face side" id="side"></div><div class="face edge"></div><div class="face top"></div><div class="face bottom"></div></div></div><button onclick="rotate(-90)">Rotate left</button><button onclick="rotate(90)">Rotate right</button><button onclick="edit()">Edit artwork</button><button class="danger" onclick="removeGame()">Delete</button><div id="editor"><p>Front, spine and back image addresses</p><input id="ef" placeholder="Front URL"><input id="es" placeholder="Spine URL"><input id="eb" placeholder="Back URL"><button onclick="saveArt()">Save artwork</button></div></div>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+var games=[], selected=-1, angle=0;
+function el(id){return document.getElementById(id)}
+try{games=JSON.parse(localStorage.getItem("games")||"[]");if(!Array.isArray(games))games=[]}catch(e){alert("Could not read saved collection.")}
+var groups={"Nintendo":"NES|Super Nintendo|Nintendo 64|GameCube|Wii|Wii U|Nintendo Switch|Nintendo Switch 2|Game Boy|Game Boy Color|Game Boy Advance|Nintendo DS|Nintendo 3DS|Virtual Boy|Famicom|Super Famicom","PlayStation":"PS1|PS2|PS3|PS4|PS5|PSP|PS Vita","Sega":"SG-1000|Master System|Genesis|Mega Drive|Sega CD|Sega 32X|Sega Saturn|Dreamcast|Game Gear|Sega Pico","Xbox":"Xbox|Xbox 360|Xbox One|Xbox Series X","Atari":"Atari 2600|Atari 5200|Atari 7800|Atari Jaguar|Atari Lynx","Other":"TurboGrafx-16|PC Engine|TurboGrafx-CD|Neo Geo AES|Neo Geo CD|Neo Geo Pocket|Neo Geo Pocket Color|3DO|Philips CD-i|ColecoVision|Intellivision|WonderSwan|WonderSwan Color|Playdate|PC|Other"};
+function node(tag,txt){var n=document.createElement(tag);if(txt)n.appendChild(document.createTextNode(txt));return n}
+for(var k in groups){var g=node("optgroup");g.label=k;var a=groups[k].split("|");for(var j=0;j<a.length;j++)g.appendChild(node("option",a[j]));el("console").appendChild(g)}
+function persist(){try{localStorage.setItem("games",JSON.stringify(games));return true}catch(e){alert("Unable to save. Your changes may be lost.");return false}}
+function add(){var b=el("barcode").value.trim();if(b&&games.some(function(g){return g.barcode===b})&&!confirm("This barcode is already in your collection. Add another copy?"))return;var t=el("title").value;if(!t.replace(/\s/g,""))return;games.push({title:t,platform:el("console").value,cover:el("cover").value,barcode:el("barcode").value.trim()});persist();el("title").value="";el("cover").value="";el("barcode").value="";render()}
+function art(target,url,fallback,spine){target.innerHTML="";if(/^https?:\/\//i.test(url||"")){var im=node("img");im.alt=fallback;im.onerror=function(){target.innerHTML="";target.appendChild(node(spine?"span":"p",fallback))};im.src=url;target.appendChild(im)}else target.appendChild(node(spine?"span":"p",fallback))}
+function render(){var root=el("shelves");root.innerHTML="";el("count").innerHTML="Total games: "+games.length;var order=[],q=el("search").value.toLowerCase();for(var i=0;i<games.length;i++)if((games[i].title+" "+games[i].platform).toLowerCase().indexOf(q)>=0)order.push(i);order.sort(function(a,b){return games[a].platform.localeCompare(games[b].platform)||games[a].title.localeCompare(games[b].title)});var last="",shelf;for(var j=0;j<order.length;j++){var i=order[j],g=games[i];if(g.platform!==last||!shelf){if(shelf){var led=node("div");led.className="ledge";shelf.appendChild(led)}root.appendChild(node("h2",g.platform));shelf=node("div");shelf.className="shelf";root.appendChild(shelf);last=g.platform}var s=node("button");s.className="spine";s.style.padding="0";s.title=g.title;art(s,g.spine,g.title,true);s.onclick=(function(index){return function(){openGame(index)}})(i);shelf.appendChild(s)}if(shelf){var led=node("div");led.className="ledge";shelf.appendChild(led)}else root.appendChild(node("p","No games to display."))}
+function openGame(i){selected=i;var g=games[i];el("name").textContent=g.title+" - "+g.platform;art(el("front"),g.cover,g.title,false);art(el("back"),g.back,"Back artwork not added",false);art(el("side"),g.spine,g.title,true);el("viewer").style.display="block";el("editor").style.display="none";angle=-65;rotate(0);setTimeout(function(){if(selected===i){angle=-20;rotate(0)}},50)}
+function rotate(d){angle+=d;var v="rotateY("+angle+"deg)";el("case").style.transform=v;el("case").style.webkitTransform=v}
+function closeView(){selected=-1;el("viewer").style.display="none"}
+function edit(){var g=games[selected];el("ef").value=g.cover||"";el("es").value=g.spine||"";el("eb").value=g.back||"";el("editor").style.display="block"}
+function saveArt(){var g=games[selected];g.cover=el("ef").value;g.spine=el("es").value;g.back=el("eb").value;persist();render();openGame(selected)}
+function removeGame(){if(confirm("Delete this game?")){games.splice(selected,1);persist();closeView();render()}}
+
+var scanner=null, scanning=false, lookupVersion=0;
+function status(t){el("scanStatus").textContent=t}
+async function startScan(){
+ if(scanning)return;
+ if(!window.isSecureContext || !navigator.mediaDevices){status("Camera requires HTTPS hosting. You can type the barcode instead.");return}
+ if(typeof Html5Qrcode==="undefined"){status("Scanner library unavailable. Type the barcode instead.");return}
+ try{scanner=new Html5Qrcode("reader");scanning=true;
+ await scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:250,height:120}},function(code){if(!scanning)return;if(!/^\d{8,14}$/.test(code))return;el("barcode").value=code;stopScan();lookup()},function(){});
+ }catch(e){scanning=false;status("Camera could not start. Check camera permission or enter the barcode manually.")}
+}
+async function stopScan(){if(scanner&&scanning){scanning=false;try{await scanner.stop();scanner.clear()}catch(e){}}}
+async function lookup(){
+ var b=el("barcode").value.trim(),v=++lookupVersion;
+ if(!/^\d{8,14}$/.test(b)){status("Enter an 8 to 14 digit barcode.");return}
+ el("manual").href="https://www.google.com/search?q="+encodeURIComponent(b+" video game box art");el("manual").textContent="Search barcode and artwork manually";
+ var existing=games.find(function(g){return g.barcode===b});
+ if(existing){el("title").value=existing.title;el("console").value=existing.platform;el("cover").value=existing.cover||"";status("Already in your collection.");return}
+ status("Looking up barcode...");
+ try{
+ var r=await fetch("https://world.openproductsfacts.org/api/v2/product/"+encodeURIComponent(b)+".json");
+ if(!r.ok)throw Error("Lookup failed");
+ var d=await r.json();if(v!==lookupVersion||el("barcode").value.trim()!==b)return;
+ if(d.status!==1||!d.product||!d.product.product_name)throw Error("No match");
+ var product=d.product;el("title").value=product.product_name;el("cover").value=product.image_front_url||product.image_url||"";
+ status("Possible match found. Verify title, console and cover, then tap Add Game. Back and spine artwork are not supplied by this lookup.");
+ }catch(e){if(v===lookupVersion)status("No accessible match. Use the manual search link, then enter the game details.")}
+}
+render();
+</script></body></html>
