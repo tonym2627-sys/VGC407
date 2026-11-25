@@ -226,6 +226,8 @@ h1 {margin:10px 0 4px; font-size:34px; text-shadow:0 0 22px #27b8ef88;}
 .ledge {display:none;}
 .empty-bay {justify-content:center; align-items:center; color:#a6b8c7; font-size:13px; padding:20px; min-height:150px; box-sizing:border-box;}
 @media(max-width:480px){#shelves{border-width:8px 7px 16px;padding:8px 5px 12px}.shelf{padding:20px 7px 0}.spine{width:25px;height:145px}.spine span{left:18px;width:125px;font-size:10px}}
+.artpick{margin:10px auto;padding:8px;border:1px solid #38434e;border-radius:8px;max-width:420px}.artpreview{display:block;max-height:120px;max-width:90%;margin:6px auto}.artpreview[hidden]{display:none} #cropPanel{position:fixed;inset:0;background:#101218;z-index:30;overflow:auto;padding:15px} #cropPanel[hidden]{display:none} #cropCanvas{max-width:95%;max-height:48vh} 
+.valuepanel{max-width:720px;margin:12px auto;padding:12px;border:1px solid #354b60;border-radius:10px;background:#151d27}.valuegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:12px}.valuegrid strong{display:block;color:#8deaff;font-size:1.2em}.valuepanel label{display:inline-block;margin:5px}.valuepanel input{width:125px}.valuepanel a{color:#8deaff}.valuepanel small{display:block;color:#b9c4ce;margin:8px}
 </style>
 </head>
 
@@ -233,15 +235,17 @@ h1 {margin:10px 0 4px; font-size:34px; text-shadow:0 0 22px #27b8ef88;}
 
 <h1>VGC407</h1>
 <p class="subtitle">MY GAME COLLECTION</p>
-<p id="count"></p>
+<p id="count"></p><div id="valueDashboard" class="valuepanel valuegrid"></div>
 
 <div class="toolbar"><button onclick="toggleTools()">＋ Add / Scan Game</button><input id="search" placeholder="Search collection" oninput="render()"></div>
 <div id="tools" hidden>
 <div>
   <input id="title" placeholder="Game title">
   <select id="console"></select>
-  <input id="cover" placeholder="Front cover URL">
-  <button onclick="add()">Add Game</button>
+<div class="artpick"><strong>Front cover</strong><br><input id="cover" placeholder="Front cover URL"><br><button onclick="pickArt('cover',true)">Take Photo</button><button onclick="pickArt('cover',false)">Upload Photo</button><img id="preview-cover" class="artpreview" hidden></div>
+<div class="artpick"><strong>Spine</strong><br><input id="newspine" placeholder="Spine URL"><br><button onclick="pickArt('newspine',true)">Take Photo</button><button onclick="pickArt('newspine',false)">Upload Photo</button><img id="preview-newspine" class="artpreview" hidden></div>
+<div class="artpick"><strong>Back cover</strong><br><input id="newback" placeholder="Back URL"><br><button onclick="pickArt('newback',true)">Take Photo</button><button onclick="pickArt('newback',false)">Upload Photo</button><img id="preview-newback" class="artpreview" hidden></div>
+<div class="valuepanel"><label>Purchase price ($)<br><input id="newpaid" type="number" min="0" step="0.01" placeholder="Unknown"></label><label>Estimated value ($)<br><input id="newvalue" type="number" min="0" step="0.01" placeholder="Unknown"></label><label>Condition<br><select id="newcondition"><option>Unknown</option><option>Loose</option><option>Complete in box</option><option>Sealed</option></select></label><label>Region / edition<br><input id="newregion" placeholder="USA / PAL / etc."></label><small>USD. Enter a value based on comparable sold listings; blank means unknown.</small></div>  <button onclick="add()">Add Game</button>
 </div>
 
 <div>
@@ -282,7 +286,7 @@ h1 {margin:10px 0 4px; font-size:34px; text-shadow:0 0 22px #27b8ef88;}
 
 <div id="viewer">
   <button onclick="closeView()">Close</button>
-  <h2 id="name"></h2>
+  <h2 id="name"></h2><div id="gameValue" class="valuepanel"></div><div class="valuepanel"><label>Purchase price ($)<br><input id="editpaid" type="number" min="0" step="0.01" placeholder="Unknown"></label><label>Estimated value ($)<br><input id="editvalue" type="number" min="0" step="0.01" placeholder="Unknown"></label><label>Condition<br><select id="editcondition"><option>Unknown</option><option>Loose</option><option>Complete in box</option><option>Sealed</option></select></label><label>Region / edition<br><input id="editregion" placeholder="USA / PAL / etc."></label><small>USD. Enter a value based on comparable sold listings; blank means unknown.</small></div><button onclick="saveValue()">Save Value & Details</button><p><a id="pcLink" target="_blank" rel="noopener" style="color:#8deaff">Check PriceCharting</a> · <a id="soldLink" target="_blank" rel="noopener" style="color:#8deaff">Check eBay sold listings</a></p>
 
   <div id="stage">
     <div id="case">
@@ -303,13 +307,15 @@ h1 {margin:10px 0 4px; font-size:34px; text-shadow:0 0 22px #27b8ef88;}
 
   <div id="editor">
     <p>Front, spine and back artwork</p>
-    <input id="ef" placeholder="Front URL">
-    <input id="es" placeholder="Spine URL">
-    <input id="eb" placeholder="Back URL">
+<div class="artpick"><strong>Front cover</strong><br><input id="ef" placeholder="Front URL"><br><button onclick="pickArt('ef',true)">Take Photo</button><button onclick="pickArt('ef',false)">Upload Photo</button><img id="preview-ef" class="artpreview" hidden></div>
+<div class="artpick"><strong>Spine</strong><br><input id="es" placeholder="Spine URL"><br><button onclick="pickArt('es',true)">Take Photo</button><button onclick="pickArt('es',false)">Upload Photo</button><img id="preview-es" class="artpreview" hidden></div>
+<div class="artpick"><strong>Back cover</strong><br><input id="eb" placeholder="Back URL"><br><button onclick="pickArt('eb',true)">Take Photo</button><button onclick="pickArt('eb',false)">Upload Photo</button><img id="preview-eb" class="artpreview" hidden></div>
     <button onclick="saveArt()">Save Artwork</button>
   </div>
 </div>
 
+<input id="artFile" type="file" accept="image/*" hidden>
+<div id="cropPanel" hidden><h2>Adjust artwork</h2><canvas id="cropCanvas"></canvas><p>Zoom and move the photo to fit the case.</p><label>Zoom <input id="cropZoom" type="range" min="1" max="4" step=".05" value="1"></label><br><label>Horizontal <input id="cropX" type="range" min="0" max="1" step=".01" value=".5"></label><br><label>Vertical <input id="cropY" type="range" min="0" max="1" step=".01" value=".5"></label><br><button id="cropSave">Use Photo</button><button onclick="el('cropPanel').hidden=true">Cancel</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 
 <script>
@@ -431,6 +437,7 @@ function setPlatform(platform, title = "") {
 }
 
 function add() {
+  for(const k of ["paid","value"])if(!el("new"+k).reportValidity())return;
   const b = el("barcode").value.trim();
   const t = el("title").value.trim();
 
@@ -449,7 +456,8 @@ function add() {
     title: t,
     platform: el("console").value,
     cover: el("cover").value,
-    barcode: b
+    spine: el("newspine").value, back: el("newback").value,
+    barcode: b, ...readValue("new")
   });
 
   if (!persist()) {
@@ -460,7 +468,9 @@ function add() {
   el("title").value = "";
   el("cover").value = "";
   el("barcode").value = "";
+  for(const id of ["cover","newspine","newback"]){el(id).value="";el("preview-"+id).hidden=true;}
 
+  fillValue("new", {});
   lookupVersion++;
 
   status("Game added to your collection!");
@@ -470,6 +480,10 @@ function add() {
 function art(target, url, fallback, spine) {
   target.innerHTML = "";
 
+  if (String(url||'').startsWith('art:')) {
+    const im=node('img'); im.alt=fallback; target.appendChild(im);
+    loadArt(url).then(blob=>{if(!blob)throw Error('missing');if(!im.isConnected)return;const u=URL.createObjectURL(blob);im.onload=im.onerror=()=>URL.revokeObjectURL(u);im.src=u;}).catch(()=>{if(im.isConnected){im.remove();target.appendChild(node(spine?'span':'p',fallback));}});return;
+  }
   if (/^https?:\/\//i.test(url || "")) {
     const im = node("img");
     im.alt = fallback;
@@ -497,6 +511,15 @@ function toggleTools() {
   if (panel.hidden) stopScan();
 }
 
+
+function money(n){return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);}
+function known(n){return typeof n==='number' && Number.isFinite(n) && n>=0;}
+function readValue(p){const num=id=>{const e=el(p+id);return e.value!==''&&e.validity.valid&&known(Number(e.value))?Number(e.value):null;};return {paid:num('paid'),value:num('value'),condition:el(p+'condition').value,region:el(p+'region').value.trim(),valueDate:num('value')===null?null:new Date().toISOString().slice(0,10)};}
+function fillValue(p,g){for(const k of ['paid','value'])el(p+k).value=known(g[k])?g[k]:'';el(p+'condition').value=g.condition||'Unknown';el(p+'region').value=g.region||'';}
+function renderValues(){const paid=games.filter(g=>known(g.paid)),valued=games.filter(g=>known(g.value)),both=games.filter(g=>known(g.paid)&&known(g.value));const root=el('valueDashboard');root.replaceChildren();for(const [label,amount,coverage] of [['Money invested',paid.reduce((a,g)=>a+g.paid,0),paid.length],['Estimated value',valued.reduce((a,g)=>a+g.value,0),valued.length],['Gain / loss',both.reduce((a,g)=>a+g.value-g.paid,0),both.length]]){const d=node('div');d.append(node('small',label),node('strong',coverage?money(amount):'Unknown'),node('small',coverage+' of '+games.length+' games'));root.append(d);}}
+function showValue(g){const r=el('gameValue');r.replaceChildren();r.append(node('strong','Estimated value: '+(known(g.value)?money(g.value):'Unknown')),node('p','Purchase price: '+(known(g.paid)?money(g.paid):'Unknown')),node('p',known(g.paid)&&known(g.value)?'Gain / loss: '+money(g.value-g.paid):'Gain / loss: Unknown'),node('small',g.valueDate?'Estimate recorded '+g.valueDate+' · manually entered':'No market estimate recorded'));const q=[g.title,g.platform,g.region,g.condition==='Unknown'?'':g.condition].filter(Boolean).join(' ');el('pcLink').href='https://www.pricecharting.com/search-products?q='+encodeURIComponent(q)+'&type=prices';el('soldLink').href='https://www.ebay.com/sch/i.html?_nkw='+encodeURIComponent(q)+'&LH_Sold=1&LH_Complete=1';}
+function saveValue(){if(selected<0)return;for(const k of ['paid','value'])if(!el('edit'+k).reportValidity())return;const g=games[selected],old={...g},next=readValue('edit');if(next.value===g.value)next.valueDate=g.valueDate||next.valueDate;Object.assign(g,next);if(!persist()){Object.assign(g,old);return;}render();showValue(g);}
+
 function render() {
   const root = el("shelves");
   root.innerHTML = "";
@@ -504,6 +527,7 @@ function render() {
   el("count").textContent =
     "Total games: " + games.length;
 
+  renderValues();
   const q = el("search").value.toLowerCase();
 
   const order = games.map((g,i) => i)
@@ -574,6 +598,7 @@ function openGame(i) {
   el("name").textContent =
     g.title + " - " + g.platform;
 
+  fillValue("edit",g); showValue(g);
   art(el("front"), g.cover, g.title, false);
   art(el("back"), g.back,
     "Back artwork not added", false);
@@ -612,16 +637,18 @@ function edit() {
   el("eb").value = g.back || "";
 
   el("editor").style.display = "block";
+  for(const id of ["ef","es","eb"]) showPreview(id);
 }
 
 function saveArt() {
   const g = games[selected];
 
+  const previous={...g};
   g.cover = el("ef").value;
   g.spine = el("es").value;
   g.back = el("eb").value;
 
-  persist();
+  if(!persist()){Object.assign(g,previous);return;}
   render();
   openGame(selected);
 }
@@ -874,6 +901,19 @@ async function lookup() {
     }
   }
 }
+
+
+let artTarget, cropImage;
+const artDB = new Promise((resolve,reject)=>{const r=indexedDB.open('VGC407Artwork',1);r.onupgradeneeded=()=>r.result.createObjectStore('photos');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+artDB.catch(()=>{});
+async function loadArt(key){const db=await artDB;return new Promise((resolve,reject)=>{const r=db.transaction('photos').objectStore('photos').get(key);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
+async function storeArt(blob){const db=await artDB;const key='art:'+crypto.randomUUID();return new Promise((resolve,reject)=>{const tx=db.transaction('photos','readwrite');tx.objectStore('photos').put(blob,key);tx.oncomplete=()=>resolve(key);tx.onerror=tx.onabort=()=>reject(tx.error);});}
+async function showPreview(id){const im=el('preview-'+id),key=el(id).value;im.hidden=true;try{if(key.startsWith('art:')){const b=await loadArt(key);if(!b||el(id).value!==key)return;const u=URL.createObjectURL(b);im.onload=im.onerror=()=>URL.revokeObjectURL(u);im.src=u;}else if(/^https?:/i.test(key)){im.src=key;}else return;im.hidden=false;}catch(e){}}
+function pickArt(id,camera){stopScan();artTarget=id;const f=el('artFile');f.value='';if(camera)f.setAttribute('capture','environment');else f.removeAttribute('capture');f.click();}
+el('artFile').onchange=async function(){if(!this.files.length)return;const u=URL.createObjectURL(this.files[0]);try{const im=new Image();im.src=u;await im.decode();cropImage=im;for(const id of ['cropZoom','cropX','cropY'])el(id).value=id==='cropZoom'?1:.5;el('cropPanel').hidden=false;drawCrop();}catch(e){alert('Unable to open photo. Try a JPEG or PNG.');}finally{URL.revokeObjectURL(u);}};
+function drawCrop(){if(!cropImage)return;const c=el('cropCanvas'),sp=['es','newspine'].includes(artTarget);c.width=sp?100:650;c.height=900;const im=cropImage,z=+el('cropZoom').value,scale=Math.max(c.width/im.naturalWidth,c.height/im.naturalHeight)*z,w=c.width/scale,h=c.height/scale; c.getContext('2d').drawImage(im,(im.naturalWidth-w)*+el('cropX').value,(im.naturalHeight-h)*+el('cropY').value,w,h,0,0,c.width,c.height);}
+for(const id of ['cropZoom','cropX','cropY'])el(id).oninput=drawCrop;
+el('cropSave').onclick=async function(){this.disabled=true;const target=artTarget;try{const blob=await new Promise(r=>el('cropCanvas').toBlob(r,'image/jpeg',.85));if(!blob)throw Error('photo');el(target).value=await storeArt(blob);showPreview(target);el('cropPanel').hidden=true;}catch(e){alert('Could not save photo. Check available browser storage.');}finally{this.disabled=false;}};
 
 window.addEventListener("pagehide", stopScan);
 
