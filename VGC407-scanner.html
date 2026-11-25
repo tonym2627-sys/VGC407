@@ -37,21 +37,61 @@ async function startScan(){
  }catch(e){scanning=false;status("Camera could not start. Check camera permission or enter the barcode manually.")}
 }
 async function stopScan(){if(scanner&&scanning){scanning=false;try{await scanner.stop();scanner.clear()}catch(e){}}}
-async function lookup(){
- var b=el("barcode").value.trim(),v=++lookupVersion;
- if(!/^\d{8,14}$/.test(b)){status("Enter an 8 to 14 digit barcode.");return}
- el("manual").href="https://www.google.com/search?q="+encodeURIComponent(b+" video game box art");el("manual").textContent="Search barcode and artwork manually";
- var existing=games.find(function(g){return g.barcode===b});
- if(existing){el("title").value=existing.title;el("console").value=existing.platform;el("cover").value=existing.cover||"";status("Already in your collection.");return}
- status("Looking up barcode...");
- try{
- var r=await fetch("https://world.openproductsfacts.org/api/v2/product/"+encodeURIComponent(b)+".json");
- if(!r.ok)throw Error("Lookup failed");
- var d=await r.json();if(v!==lookupVersion||el("barcode").value.trim()!==b)return;
- if(d.status!==1||!d.product||!d.product.product_name)throw Error("No match");
- var product=d.product;el("title").value=product.product_name;el("cover").value=product.image_front_url||product.image_url||"";
- status("Possible match found. Verify title, console and cover, then tap Add Game. Back and spine artwork are not supplied by this lookup.");
- }catch(e){if(v===lookupVersion)status("No accessible match. Use the manual search link, then enter the game details.")}
+
+async function lookup() {
+  var b = el("barcode").value.trim();
+  var v = ++lookupVersion;
+
+  if (!/^\d{8,14}$/.test(b)) {
+    status("Enter an 8 to 14 digit barcode.");
+    return;
+  }
+
+  el("manual").href =
+    "https://www.google.com/search?q=" +
+    encodeURIComponent(b + " video game box art");
+
+  el("manual").textContent = "Search manually";
+
+  var existing = games.find(g => g.barcode === b);
+
+  if (existing) {
+    el("title").value = existing.title;
+    el("console").value = existing.platform;
+    el("cover").value = existing.cover || "";
+    status("Game already in your collection.");
+    return;
+  }
+
+  status("Searching VGC407 database...");
+
+  try {
+    var r = await fetch(
+      "https://vgc407-api.tonym2627.workers.dev/?barcode=" +
+      encodeURIComponent(b)
+    );
+
+    if (!r.ok) throw Error("Lookup failed");
+
+    var d = await r.json();
+
+    if (v !== lookupVersion ||
+        el("barcode").value.trim() !== b) return;
+
+    if (!d.found) throw Error("No match");
+
+    el("title").value = d.title || "";
+    el("console").value = d.platform || "";
+    el("cover").value = d.image || "";
+
+    status("Game found! Verify details and tap Add Game.");
+
+  } catch (e) {
+    if (v === lookupVersion) {
+      status("Game not found. Try manual search.");
+    }
+  }
 }
+
 render();
 </script></body></html>
